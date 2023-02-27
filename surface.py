@@ -2,13 +2,31 @@ from utils import *
 
 class Surface():
     def __init__(self, surface, u_range=[0, 1], v_range=[0, 1], u_step=0.1, v_step=0.1):
-        self.S = surface
+        self.S = sp.sympify(surface)
         u = np.arange(u_range[0], u_range[1], u_step)
         v = np.arange(v_range[0], v_range[1], v_step)
         self.U = {'u': u, 'v': v}
         self.S_u = diff(self.S, 'u')
         self.S_v = diff(self.S, 'v')
         self.N_S = np.cross(self.S_u, self.S_v)
+        assert self.is_regular(surface)[0], f"Surface is not regular! {self.is_regular(surface)[1]}"
+
+
+    def is_regular(self, S=None):
+        if S is None:
+            S = self.S
+        cross = np.cross(self.S_u, self.S_v)
+        # Solutions for u and v
+        u_sols, v_sols = [], []
+        for c in cross:
+            u_sols.append(sp.solve(c, sp.Symbol('u')))
+            v_sols.append(sp.solve(c, sp.Symbol('v')))
+        u_sol = set(u_sols[0]).intersection(*u_sols[1:])
+        v_sol = set(v_sols[0]).intersection(*v_sols[1:])
+        if len(u_sol) == 0 and len(v_sol) == 0:
+            return True, None
+        else:
+            return False, (u_sol, v_sol)
 
     def evaluate(self, x_expr, y_expr, z_expr, u, v):
         x = sp.sympify(x_expr)
@@ -105,7 +123,17 @@ class Surface():
         plt.show()
 
 
+class TransitionMap():
+    def __init__(self, map, vars=['u', 'v']):
+        self.map = sp.sympify(map)
+        self.vars = vars
+        self.inv_map = self.get_inverse(self.map, self.vars).subs('inv', self.var)
+
+    def get_inverse(self, expresssion, symbol):
+        var = sp.Symbol(symbol)
+        expr = sp.sympify(expresssion - sp.Symbol("inv"))
+        return (sp.solve(expr, var)[-1])
 
 if __name__ == "__main__":
     cylinder = Surface(['cos(u)', 'sin(u)', 'v'], u_range=[0, 2*np.pi], v_range=[-1, 1])
-    cylinder.plot_surface(p=(np.pi/2, 0), draw_normal=True, draw_tangents=True, verbose=True)
+    cylinder.plot_surface(p=(3*np.pi/2, 0), draw_normal=True, draw_tangents=True, verbose=True)
